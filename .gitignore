@@ -1,0 +1,27 @@
+# 运行时中间产物
+tmp/
+**/tmp/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 下载的论文/仓库( deep 模式产物,体积大 )
+tmp/papers/
+tmp/pdfs/
+tmp/repos/
+tmp/web/
+
+# 临时 PDF
+*.pdf
+
+# 系统/编辑器
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# 敏感( 若有 )
+.env
+*.token
