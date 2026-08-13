@@ -2,6 +2,9 @@
 tmp/
 **/tmp/
 
+# 生成的报告产物( skill 运行时产出,不进仓 )
+output/
+
 # Python 缓存
 __pycache__/
 *.py[cod]
