@@ -23,10 +23,11 @@ category: research
 
 ### 检索脚本( `scripts/`,Python 标准库为主 )
 - `search_arxiv.py "query" --days N --max 20 --out tmp/arxiv.json`( 论文,--fields ti_abs 降噪 )
-- `search_github.py "query" --days N --max 20 --out tmp/github.json`( repo+star )
+- `search_github.py "query" --days N --max 20 [--sort best|stars|updated] [--min-stars N] --out tmp/github.json`( repo+star;默认 best=相关性 )
 - `search_community.py "query" --days N --max 15 [--reddit] --out tmp/community.json`( HN/Reddit,带热度 )
 - `iter_collect.py --history tmp/history.json --add <jsons> --round N --queries <...>`( **迭代循环累积去重**,跨轮持久化历史;`--stat` 看统计 )
 - `dedupe.py a.json b.json ... --out tmp/merged.json`( 一次性跨源去重,非循环用 )
+- `seed_check.py --materials tmp/research.json --seeds tmp/seeds.json`( **收敛前必收项对账**,缺失直接补料;`--history` 可选查上游 )
 - 中文社区( 无 API ):WebSearch `site:zhihu.com/juejin.cn/...` + `web_extract.py`( 见 references/community.md )
 
 ### 渲染脚本
@@ -74,9 +75,11 @@ while round < maxRounds:
     ① 检索:四源用本轮 queries( search_arxiv/search_github/search_community + 中文社区 WebSearch )
     ② 累积去重:`iter_collect.py --history tmp/history.json --add <本轮各源json> --round round --queries <...>`
     ③ 浅分析:相关性/质量打分 + 简评( 三段式 )+ 热点检测( trends.md )
-    ④ 收敛判断( agent ):还有无可检索的信息缺口( 漏的子方向/关键词/对比对象 )?
-       - 无 → 收敛,break
-       - 有 → 生成下轮 query( 针对缺口,不重复 )→ 继续
+    ④ 收敛判断( agent ):先过**必收项对账**( 用户点名/记忆里的已知系统都在结果里?
+       缺的直接补料,不靠检索 ),再问还有无可检索的信息缺口( 漏的子方向/关键词/对比对象 )?
+       - 对账有缺 → 补料后复查( 不 break )
+       - 无缺口且对账通过 → 收敛,break
+       - 否则 → 生成下轮 query( 针对缺口,不重复 )→ 继续
 达 maxRounds 仍未收敛 → 用现有材料出报告,剩余缺口列入"未覆盖"
 ```
 - **简单模式自然收敛快**( 浅分析缺口少 ),通常 2 轮就没了。
@@ -99,9 +102,11 @@ while round < maxRounds:
    - GitHub → `git clone --depth 1` 到 tmp/repos → **`/project-analyzer` 技能分析**( 无则 agent 自读代码 )
    - 博客/网页 → **不预设,agent 自由发挥**( web_extract.py / WebSearch 等 )
    - 每个按 deep.md 五轮框架( 解决什么/方法/对比/局限/影响 ),带出处。
-3. **收敛判断( agent )**:还有无可检索缺口?( deep 缺口多,可到 maxRounds 5 )
-   - 有 → 演化 query( 基于新发现的概念/对比对象 )→ 下轮
-   - 无 → 收敛
+3. **收敛判断( agent )**:先过必收项对账( 对账对象=最终 materials 含 `urls[]`,缺失直接补料 ),
+   再判还有无可检索缺口?( deep 缺口多,可到 maxRounds 5 )
+   - 对账有缺 → 补料写回 materials 后复查( 不收敛 )
+   - 有可检索缺口 → 演化 query( 基于新发现的概念/对比对象 )→ 下轮
+   - 都无 → 收敛
 
 ### 写作 agent( 收敛后 )
 把多轮深挖**横向综合**成分章节综述( 背景/方法分类/对比表/趋势/结论 ),不是拼接。

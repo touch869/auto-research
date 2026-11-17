@@ -15,9 +15,10 @@ while round < maxRounds:
     3. 分析:
        - 简单模式:浅分析( 相关性/质量/简评/热点 )
        - deep模式:深分析( 对核心材料读全文深挖 )
-    4. 收敛判断( agent,见下 ):
-       - 若"已收敛"( 无值得再搜的缺口 )→ break
-       - 否则:生成下一轮 queries( 针对缺口 )→ 继续
+    4. 收敛判断( agent,见下:必收项对账 + 可检索缺口 ):
+       - 必收项有缺 → 补料后复查( 不 break )
+       - 无缺口且对账通过 → break
+       - 否则:生成针对缺口的 query( 具体、可搜 )→ 继续
 综合 history → 渲染报告
 ```
 
@@ -25,15 +26,24 @@ while round < maxRounds:
 每轮分析后,agent 回答:
 1. **信息缺口**:基于已收集材料,还有哪些关键问题/子方向/对比对象**没覆盖**?
 2. **是否值得再搜**:这些缺口能否通过进一步检索填补?( 有的缺口是"材料不存在"或"需实验",搜不出来 → 不算可检索缺口 )
-3. **判定**:
-   - 无可检索缺口 → **收敛**,停止
+3. **必收项对账( 收敛前置 )**:必收清单 = 用户点名的链接 + 记忆/旧报告里的已知系统 +
+   领域公认项。**对账对象是最终材料清单**( research.json 的 materials,含 `urls[]` ),
+   不是检索历史——链接在 history 里但写作时没写进 materials,同样算缺。
+   缺失的**直接补料**( curl abs / clone / README )并写回 materials,不生成 query 去搜
+   ( 检索是概率的,对账是确定的 )。清单长用 `scripts/seed_check.py`:
+   `python scripts/seed_check.py --materials tmp/research.json --seeds tmp/seeds.json`
+   ( 可选 `--history tmp/history.json`:上游已收录但未进 materials 会标 ⚠️,仍算缺;
+   `--extra` 查其他 json )。
+4. **判定**:
+   - 必收项有缺 → 补料写回 materials 后复查( 不算收敛 )
+   - 无可检索缺口且对账通过 → **收敛**,停止
    - 有可检索缺口 → 生成针对缺口的 query( 具体、可搜 ),进入下一轮
 
 **业界 5 类停止判据**( 元研究自 Deep Research Agents 实践 ):
 | 判据 | 含义 | 我们用? |
 |------|------|---------|
 | 迭代预算 | 硬上限( 如 LangChain:5 次 tool call ) | ✅ maxRounds 兜底 |
-| 覆盖度 | 子话题都探索过 | ✅ agent 自判"缺口"含此 |
+| 覆盖度 | 子话题都探索过 | ✅ agent 自判"缺口"含此 + 必收项对账 |
 | 置信度 | 能自信回答就停 | ✅ agent 自判含此 |
 | 收敛 | 新搜索收益递减/大量重复 | ✅ agent 自判 + iter_collect 去重计数辅助 |
 | 成本预算 | token/$ 耗尽 | ⬜ 可选,暂未实现 |
@@ -54,6 +64,15 @@ while round < maxRounds:
   - 例:第1轮发现"readiness-aware scheduling"是新概念 → 第2轮搜 `readiness-aware scheduling RL`、`CTB RA2P ERS`
   - 例:第1轮发现 prime-rl → 第2轮搜 `prime-rl vs ART`、`async RL training stability`
 - **避免重复**:下轮 query 不能是上轮的子集( 去重已保证结果不重复,但 query 本身也要进化 )
+
+## 工件收割( 传递的东西:概念变 query,链接直接入库 )
+上轮材料里新出现的东西分两类,去向不同:
+- **概念/系统名/对比对象** → 生成下轮 query 去搜( 即上面的 query 演化 );
+- **工件链接**( 论文页/PDF 里的 Code repo、dataset、demo、值得跟的引文 )→ **不变 query**,
+  直接并入 history/materials——链接已在手,再拿去搜一遍是浪费且会被检索噪声吞掉。
+- **复用旧分析**( 记忆/既有白皮书 )时同理:**工件链接随结论一起搬运**,不能只搬结论。
+  ( 实测教训 2026-11-17:InfraRSI 论文复用了既有白皮书的结论,但官方 repo
+  TokenRhythm/InfraRSI 的链接——arXiv 页/PDF/白皮书三处都有——没有随行,报告全文缺失该链接。 )
 
 ## 时效性( 贯穿全程 )
 1. **时间窗参数**:每轮检索都传 `--days`( 默认:简单 30 天、deep 180 天,可调 )。

@@ -17,6 +17,29 @@ from datetime import datetime
 from pathlib import Path
 
 
+def _link_parts(value):
+    """urls 容错:[{label,url}] / {label,url} / "url" / ["url"] 都接受,非法项跳过。"""
+    if isinstance(value, (str, dict)):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    out = []
+    for e in value:
+        if isinstance(e, str) and e.strip():
+            out.append({"url": e.strip()})
+        elif isinstance(e, dict) and e.get("url"):
+            out.append(e)
+    return out
+
+
+def _md_link(label, url):
+    label = str(label or "link").replace("|", "\\|")  # 防止打断表格
+    url = str(url)
+    if any(c in url for c in " ()<>"):
+        url = f"<{url}>"
+    return f"[{label}]({url})"
+
+
 def render(data, date):
     topic = data.get("topic", "")
     materials = data.get("materials", [])
@@ -104,8 +127,14 @@ def render(data, date):
         src = m.get("source", "")
         read = m.get("read", "")
         title = m.get("title", "")
-        url = m.get("url", "")
-        lines.append(f"| {i} | {title} | {src} | {read} | {url} |")
+        # 多工件支持:url 为主链接;urls=[{label,url}...] 追加( 论文+官方 repo+demo 等 ),避免丢链接
+        links = str(m.get("url", "") or "")
+        if any(c in links for c in " ()<>"):  # 含空格/括号时用 <> 包住,防止断链
+            links = f"<{links}>"
+        parts = [_md_link(e.get("label"), e["url"]) for e in _link_parts(m.get("urls"))]
+        if parts:
+            links = (links + " " if links else "") + " ".join(parts)
+        lines.append(f"| {i} | {title} | {src} | {read} | {links} |")
     lines.append("")
     lines.append("---")
     lines.append("*由 autoresearch skill(deepresearch 模式)生成。结论标注出处;未覆盖项单独列出,不编造。*")

@@ -25,8 +25,12 @@ deep research agent 业界分两条路线,按工作流**静态 vs 动态** + **p
    - 论文:`pdf_extract.py`( 降级见 deep.md )
    - GitHub:`git clone --depth 1` + `/project-analyzer`( 无则自读代码 )
    - 网页/博客:不预设,agent 自由发挥( web_extract.py 等 )
+   - **工件收割**:每读完一份材料,摘取其 canonical 工件链接( 论文页/PDF 的 Code repo、
+     dataset、demo、值得跟的引文 )记入 materials( 多链接,见 schema );**复用旧分析**
+     ( 记忆/既有白皮书 )时,链接随结论一起搬运——见 iteration.md「工件收割」。
    - 按深挖结果( 非摘要 )发现缺口。
-3. **收敛判断**:有可检索缺口 → 演化 query 下轮;无 → 收敛。
+3. **收敛判断**:先过**必收项对账**( 见 iteration.md 第 3 步:对账对象=最终 materials 含 `urls[]`,
+   缺失直接补料,不靠检索 ),再判是否有可检索缺口;有 → 演化 query 下轮,无 → 收敛。
 **收敛后**:
 4. **写作 agent** — 把多轮深挖**横向综合**成综述( 背景/方法分类/对比表/趋势/结论 ),不是拼接。
 
@@ -51,7 +55,8 @@ deep research agent 业界分两条路线,按工作流**静态 vs 动态** + **p
 ```json
 {
   "topic": "...",
-  "materials": [{"title","url","source","deep": {解决什么/方法/对比/局限/影响}, "read":"全文/摘要"}],
+  "materials": [{"title","url","source","deep": {解决什么/方法/对比/局限/影响}, "read":"全文/摘要",
+                 "urls": [{"label":"官方repo","url":"https://github.com/..."}]}],
   "sections": [
     {"title":"背景:问题与动机","body":"...","sources":[...]},
     {"title":"核心方法分类","body":"...","sources":[...]}
